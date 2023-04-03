@@ -1,59 +1,127 @@
-import Head from 'next/head';
-import styles from '../styles/Home.module.css';
+import { useState } from "react";
+import http from './api'
+import styles from "../styles/Home.module.css";
 
-export default function Home() {
-  return (
-    <div className={styles.container}>
-      <Head>
-        <title>Create Next App</title>
-      </Head>
+const url = "http://localhost:3000/api/todo";
 
-      <main className={styles.main}>
-        <h1 className={styles.title}>
-          Welcome to <a href="https://nextjs.org">Next.js! Google</a>
-        </h1>
+export default function Home(props) {
+	const [todos, setTasks] = useState(props.todos);
+	const [todo, setTask] = useState({ todo: "" });
 
-        <p className={styles.description}>
-          Get started by editing{' '}
-          <code className={styles.code}>pages/index.js</code>
-        </p>
+	const handleChange = ({ currentTarget: input }) => {
+		input.value === ""
+			? setTask({ todo: "" })
+			: setTask((prev) => ({ ...prev, todo: input.value }));
+	};
 
-        <div className={styles.grid}>
-          <a href="https://nextjs.org/docs" className={styles.card}>
-            <h3>Documentation &rarr;</h3>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
+	const addTask = async (e) => {
+		e.preventDefault();
+		try {
+			if (todo._id) {
+				const { data } = await http.put("/todo/" + todo._id, {
+					todo: todo.todo,
+				});
+				const originalTasks = [...todos];
+				const index = originalTasks.findIndex((t) => t._id === todo._id);
+				originalTasks[index] = data.data;
+				setTasks(originalTasks);
+				setTask({ todo: "" });
+			} else {
+				const { data } = await http.post('/todo', todo);
+				setTasks((prev) => [...prev, data.data]);
+				setTask({ todo: "" });
+			}
+		} catch (error) {
+			console.log(error);
+		}
+	};
 
-          <a href="https://nextjs.org/learn" className={styles.card}>
-            <h3>Learn &rarr;</h3>
-            <p>Learn about Next.js in an interactive course with quizzes!</p>
-          </a>
+	const editTask = (id) => {
+		const currentTask = todos.filter((todo) => todo._id === id);
+		setTask(currentTask[0]);
+	};
 
-          <a
-            href="https://github.com/vercel/next.js/tree/master/examples"
-            className={styles.card}
-          >
-            <h3>Examples &rarr;</h3>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
+	const updateTodo = async (id) => {
+		try {
+			const originalTasks = [...todos];
+			const index = originalTasks.findIndex((t) => t._id === id);
+			const { data } = await http.put("/todo/" + id, {
+				isCompleted: !originalTasks[index].isCompleted,
+			});
+			originalTasks[index] = data.data;
+			setTasks(originalTasks);
+		} catch (error) {
+			console.log(error);
+		}
+	};
 
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-          >
-            <h3>Deploy &rarr;</h3>
-            <p>
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
-        </div>
-      </main>
+	const deleteTask = async (id) => {
+		try {
+			const { data } = await http.delete('/todo/' + id);
+			setTasks((prev) => prev.filter((todo) => todo._id !== id));
+		} catch (error) {
+			console.log(error);
+		}
+	};
 
-      <footer className={styles.footer}>
-        <a href="https://next.new" target="_blank" rel="noopener noreferrer">
-          Created with&nbsp;<b>next.new</b>&nbsp;⚡️
-        </a>
-      </footer>
-    </div>
-  );
+	return (
+		<main className={styles.main}>
+			<h1 className={styles.heading}>Todo-Application</h1>
+			<div className={styles.container}>
+				<form onSubmit={addTask} className={styles.form_container}>
+					<input
+						className={styles.input}
+						type="text"
+						placeholder="Task to be done..."
+						onChange={handleChange}
+						value={todo.todo}
+					/>
+					<button type="submit" className={styles.submit_btn}>
+						{todo._id ? "Update" : "Add"}
+					</button>
+				</form>
+				{todos.map((todo) => (
+					<div className={styles.todo_container} key={todo._id}>
+						<input
+							type="checkbox"
+							className={styles.check_box}
+							checked={todo.isCompleted}
+							onChange={() => updateTodo(todo._id)}
+						/>
+						<p
+							className={
+								todo.isCompleted
+									? styles.todo_text + " " + styles.line_through
+									: styles.todo_text
+							}
+						>
+							{todo.todo}
+						</p>
+						<button
+							onClick={() => editTask(todo._id)}
+							className={styles.edit_todo}
+						>
+							&#9998;
+						</button>
+						<button
+							onClick={() => deleteTask(todo._id)}
+							className={styles.remove_todo}
+						>
+							&#10006;
+						</button>
+					</div>
+				))}
+				{todos.length === 0 && <h2 className={styles.no_todos}>No todos</h2>}
+			</div>
+		</main>
+	);
 }
+
+export const getServerSideProps = async () => {
+	const { data } = await http.get('/todos');
+	return {
+		props: {
+			todos: data.data,
+		},
+	};
+};
