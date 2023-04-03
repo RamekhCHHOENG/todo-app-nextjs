@@ -2,8 +2,6 @@ import { useState } from "react";
 import http from './api'
 import styles from "../styles/Home.module.css";
 
-const url = "http://localhost:3000/api/todo";
-
 export default function Home(props) {
 	const [todos, setTasks] = useState(props.todos);
 	const [todo, setTask] = useState({ todo: "" });
